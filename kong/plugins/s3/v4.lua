@@ -84,6 +84,7 @@ local function prepare_awsv4_request(tbl)
   local service = tbl.service
   local request_method = tbl.method
   local canonicalURI = tbl.canonicalURI
+  local unsigned_payload = tbl.unsigned_payload
   local path = tbl.path
   if path and not canonicalURI then
     canonicalURI = canonicalise_path(path)
@@ -132,7 +133,7 @@ local function prepare_awsv4_request(tbl)
 
   local headers = {
     ["X-Amz-Date"] = req_date;
-    Host = host_header;
+    Host = req_headers.host or host_header;
   }
   local add_auth_header = true
   for k, v in pairs(req_headers) do
@@ -177,7 +178,7 @@ local function prepare_awsv4_request(tbl)
     (canonical_querystring or "") .. '\n' ..
     canonical_headers .. '\n' ..
     signed_headers .. '\n' ..
-    hex_encode(hash(req_payload or ""))
+    (unsigned_payload and "UNSIGNED-PAYLOAD" or hex_encode(hash(req_payload or "")))
 
   local hashed_canonical_request = hex_encode(hash(canonical_request))
   -- Task 2: Create a String to Sign for Signature Version 4

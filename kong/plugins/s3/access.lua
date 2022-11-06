@@ -55,19 +55,29 @@ function _M.execute(conf)
   local host = (conf['host'] ~= nil) and conf['host'] or (bucket_name .. '.s3.amazonaws.com')
   local port = (conf['port'] ~= nil) and conf['port'] or 443
 
+  local content_sha_256
+  if kong.request.get_header('content-length') then
+    content_sha_256 = 'UNSIGNED-PAYLOAD'
+  else
+    -- empty string hash https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html
+    content_sha_256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  end
+
   local opts = {
     region = conf.aws_region,
     service = 's3',
-    method = 'GET',
+    method = kong.request.get_method(),
     headers = {
-      ["Accept"] = "application/json",
-      ["x-amz-content-sha256"] = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" -- empty string hash https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html
+      ["x-amz-content-sha256"] = content_sha_256,
+      ['host'] = conf.host,
     },
     path = '/' .. bucket_name .. bucket_key,
     host = host,
     port = port,
     query = nil,
-    body = nil, 
+    body = nil,
+    domain = conf.host,
+    unsigned_payload = content_sha_256 == 'UNSIGNED-PAYLOAD',
   }
 
   patch_table_with_aws_credentials(conf, opts)
